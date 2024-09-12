@@ -382,9 +382,6 @@ Eigen::Matrix4d ur3e_fk_screw(const std::vector<double> &joint_positions) {
     const double W2 = 0.092;    //d6
 
 
-
-
-
     double theta_1 = deg_to_rad(joint_positions[0]);
     double theta_2 = deg_to_rad(joint_positions[1]);
     double theta_3 = deg_to_rad(joint_positions[2]);
@@ -432,6 +429,18 @@ Eigen::Matrix4d ur3e_fk_screw(const std::vector<double> &joint_positions) {
     return T_06;
 }
 
+
+Eigen::Matrix4d
+DH_tranformation(double theta, double d, double a, double alpha) {
+    Eigen::Matrix4d T;
+    T <<
+        std::cos(theta), -std::sin(theta)*std::cos(alpha),std::sin(theta)*std::sin(theta),a*std::cos(theta),
+        std::sin(theta), std::cos(theta)*std::cos(alpha), -std::cos(theta)*std::sin(alpha),a*std::sin(theta),
+        0,std::sin(alpha),std::cos(alpha),d,
+        0,0,0,1;
+
+    return T;
+}
 Eigen::Matrix4d ur3e_fk_transform(const std::vector<double> &joint_positions) {
     const double LB = 0.152;    //d1
     const double a2 = 0.244;    //a2
@@ -447,42 +456,21 @@ Eigen::Matrix4d ur3e_fk_transform(const std::vector<double> &joint_positions) {
     double theta_4 = deg_to_rad(joint_positions[3]);
     double theta_5 = deg_to_rad(joint_positions[4]);
     double theta_6 = deg_to_rad(joint_positions[5]);
+    double alpha = M_PI/2;
 
-    Eigen::Matrix4d T_B0,T_01, T_14,T_46,T6_TP, T_BTP;
+    Eigen::Matrix4d T_B0,T_01, T_12, T_23, T_34, T_45, T_56,T_06;
 
-    T_B0 <<
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, LB,
-        0, 0, 0, 1;
+    T_01 = DH_tranformation(theta_1, LB, 0, alpha);
+    T_12 = DH_tranformation(theta_2, 0, a2, 0);
+    T_23 = DH_tranformation(theta_3, 0, a3, 0);
+    T_34 = DH_tranformation(theta_4, d4, 0, alpha);
+    T_45 = DH_tranformation(theta_5, d5, 0, -alpha);
+    T_56 = DH_tranformation(theta_6, LTP, 0, 0);
 
-    T_01 <<
-        std::cos(theta_1), -std::sin(theta_1),0,0,
-        std::sin(theta_1), std::cos(theta_1), 0,0,
-        0,0,1,0,
-        0,0,0,1;
 
-    T_14 <<
-        std::cos(theta_2 + theta_3 + theta_4), -std::sin(theta_2 + theta_3 + theta_4),0, -a2*std::sin(theta_2)-a3*std::sin(theta_2+theta_3),
-        0, 0, -1, -d4,
-        std::sin(theta_2 + theta_3 + theta_4), std::cos(theta_2 + theta_3 + theta_4), 0, a2*std::cos(theta_2)+a3*std::cos(theta_2+theta_3),
-        0, 0, 0, 1;
+    T_06 = T_01*T_12*T_23*T_34*T_45*T_56;
 
-    T_46 <<
-        std::cos(theta_5)*std::cos(theta_6), -std::cos(theta_5)*std::sin(theta_6), std::sin(theta_5), 0,
-        std::sin(theta_6), std::cos(theta_6), 0, d5,
-        -std::sin(theta_5)*std::cos(theta_6), std::sin(theta_5)*std::sin(theta_6), std::cos(theta_5), 0,
-        0, 0, 0, 1;
-
-    T6_TP <<
-        1,0,0,0,
-        0,1,0,0,
-        0,0,1,LTP,
-        0,0,0,1;
-
-    T_BTP = T_B0*T_01*T_14*T_46*T6_TP;
-
-    return T_BTP;
+    return T_06;
 }
 int main()
 {
@@ -501,13 +489,13 @@ int main()
     //print_pose("Pose Description:", T2);
 
     std::vector<std::vector<double>> test_joint_positions_6d = {
-        {0.0, 0.0, 0.0, 0.0, 0.0, 0.0},           // j1
+        {0.0, 0.0, 0.0, -90.0, 0.0, 0.0},           // j1
         {0.0, -180.0, 0.0, 0.0, 0.0, 0.0},         // j2
         {0.0, -90, 0.0, 0.0, 0.0, 0.0}             // j3
     };
 
-    Eigen::Matrix4d ur3_T_S = ur3e_fk_screw(test_joint_positions_6d[0]);
-    Eigen::Matrix4d ur3_T_T = ur3e_fk_transform(test_joint_positions_6d[2]);
+    Eigen::Matrix4d ur3_T_S = ur3e_fk_screw(test_joint_positions_6d[1]);
+    Eigen::Matrix4d ur3_T_T = ur3e_fk_transform(test_joint_positions_6d[1]);
 
     print_pose("Pose Description:", ur3_T_S);
     print_pose("Pose Description:", ur3_T_T);
