@@ -51,15 +51,25 @@ Eigen::Vector3d euler_zyx_from_rotation_matrix(const Eigen::Matrix3d &r) { //SID
 
 Eigen::VectorXd twist(const Eigen::Vector3d &w, const Eigen::Vector3d &v) {
     //[ws, vs]
-    Eigen::VectorXd V;
-    V << w(0),w(1),w(2),v(0),v(1),v(2);
-    return V;
+    Eigen::VectorXd Twist;
+    Twist <<
+        w(0),w(1),w(2),v(0),v(1),v(2);
+    return Twist;
 }
+
+
 Eigen::VectorXd screw_axis(const Eigen::Vector3d &q, const Eigen::Vector3d &s, double h) {
-    Eigen::VectorXd S;
-    S << q(0),q(1),q(2),s(0),s(1),s(2),h;
-    return S;
+    Eigen::VectorXd Twist(6);
+    double theta_dot = 1.0;
+    Eigen::Vector3d w = s * theta_dot;
+
+    Eigen::Vector3d v = (-s*theta_dot).cross(q) + h*s*theta_dot;
+
+    Twist <<
+        w(0),w(1),w(2),v(0),v(1),v(2);
+    return Twist;
 }
+
 
 Eigen::MatrixXd adjoint_matrix(const Eigen::Matrix4d &tf) {
     Eigen::Matrix3d R;
@@ -217,13 +227,22 @@ Eigen::Matrix4d matrix_exponential_trans(const Eigen::Vector3d &w, const Eigen::
 
     Eigen::Vector3d star = (I*theta + (1 - std::cos(theta)) * skew_w + (theta - std::sin(theta)) * skew_w * skew_w)*v;
 
-
+    if (w.norm()== 1){
     T <<
         R(0,0),R(0,1), R(0,2), star.x(),
         R(1,0), R(1,1), R(1,2), star.y(),
         R(2,0), R(2,1), R(2,2), star.z(),
         0,0,0,1;
+    }
+    else {
+        T <<
+            I(0,0), I(0,1), I(0,2), v(0)*theta,
+            I(1,0), I(1,1), I(1,2), v(1)*theta,
+            I(2,0), I(2,1), I(2,2), v(2)*theta,
+            0, 0, 0, 1;
+    }
     return T;
+
 }
 
 //--------------------------- Task 3d) ---------------------------
@@ -374,13 +393,13 @@ Eigen::Matrix4d planar_3r_fk_screw(const std::vector<double> &joint_positions) {
 
 //--------------------------- Task 5a) ---------------------------
 Eigen::Matrix4d ur3e_fk_screw(const std::vector<double> &joint_positions) {
-    const double H1 = 0.152;    //d1
+    Eigen::Matrix4d M, T_06;
+    const double H1 = 0.152;   //d1
     const double L1 = 0.244;   //a2
     const double L2 = 0.213;   //a3
-    const double W1 = 0.131;    //d4
-    const double H2 = 0.085;    //d5
-    const double W2 = 0.092;    //d6
-
+    const double W1 = 0.131;   //d4
+    const double H2 = 0.085;   //d5
+    const double W2 = 0.092;   //d6
 
     double theta_1 = deg_to_rad(joint_positions[0]);
     double theta_2 = deg_to_rad(joint_positions[1]);
@@ -389,8 +408,22 @@ Eigen::Matrix4d ur3e_fk_screw(const std::vector<double> &joint_positions) {
     double theta_5 = deg_to_rad(joint_positions[4]);
     double theta_6 = deg_to_rad(joint_positions[5]);
 
+    // q, s, h
+    Eigen::Vector3d q1(0, 0, 0), s1(0, 0, 1);  // Joint 1 (rotates about z-axis)
+    Eigen::Vector3d q2(0, 0, H1), s2(0, 1, 0); // Joint 2 (rotates about y-axis)
+    Eigen::Vector3d q3(L1, 0, H1), s3(0, 1, 0); // Joint 3 (rotates about y-axis)
+    Eigen::Vector3d q4(L1 + L2, 0, H1), s4(0, 1, 0); // Joint 4 (rotates about y-axis)
+    Eigen::Vector3d q5(L1 + L2, W1, H1), s5(0, 0, -1); // Joint 5 (rotates about z-axis)
+    Eigen::Vector3d q6(L1 + L2, W1 + W2, H1), s6(0, 1, 0); // Joint 6 (rotates about y-axis)
 
-    Eigen::Matrix4d M, T_06;
+    double h = 0;  // pitch = 0
+
+    Eigen::VectorXd S1 = screw_axis(q1, s1, h);
+    Eigen::VectorXd S2 = screw_axis(q2, s2, h);
+    Eigen::VectorXd S3 = screw_axis(q3, s3, h);
+    Eigen::VectorXd S4 = screw_axis(q4, s4, h);
+    Eigen::VectorXd S5 = screw_axis(q5, s5, h);
+    Eigen::VectorXd S6 = screw_axis(q6, s6, h);
 
     M <<
         -1, 0, 0, L1 + L2,
@@ -398,57 +431,31 @@ Eigen::Matrix4d ur3e_fk_screw(const std::vector<double> &joint_positions) {
         0, 1, 0, H1 - H2,
         0, 0, 0, 1;
 
-    Eigen::Vector3d w1{0,0,1};
-    Eigen::Vector3d v1{0,0,0};
+    Eigen::Matrix4d T1 = matrix_exponential_trans({S1(0), S1(1), S1(2)}, {S1(3), S1(4), S1(5)}, theta_1);
+    Eigen::Matrix4d T2 = matrix_exponential_trans({S2(0), S2(1), S2(2)}, {S2(3), S2(4), S2(5)}, theta_2);
+    Eigen::Matrix4d T3 = matrix_exponential_trans({S3(0), S3(1), S3(2)}, {S3(3), S3(4), S3(5)}, theta_3);
+    Eigen::Matrix4d T4 = matrix_exponential_trans({S4(0), S4(1), S4(2)}, {S4(3), S4(4), S4(5)}, theta_4);
+    Eigen::Matrix4d T5 = matrix_exponential_trans({S5(0), S5(1), S5(2)}, {S5(3), S5(4), S5(5)}, theta_5);
+    Eigen::Matrix4d T6 = matrix_exponential_trans({S6(0), S6(1), S6(2)}, {S6(3), S6(4), S6(5)}, theta_6);
 
-    Eigen::Vector3d w2{0,1,0};
-    Eigen::Vector3d v2{-H1,0,0};
-
-    Eigen::Vector3d w3{0,1,0};
-    Eigen::Vector3d v3{-H1,0,L1};
-
-    Eigen::Vector3d w4{0,1,0};
-    Eigen::Vector3d v4{-H1,0,L1 + L2};
-
-    Eigen::Vector3d w5{0,0,-1};
-    Eigen::Vector3d v5{-W1,L1 + L2,0};
-
-    Eigen::Vector3d w6{0,1,0};
-    Eigen::Vector3d v6{H2 - H1,0,L1 + L2};
-
-    Eigen::Matrix4d T1 = matrix_exponential_trans(w1, v1, theta_1);
-    Eigen::Matrix4d T2 = matrix_exponential_trans(w2, v2, theta_2);
-    Eigen::Matrix4d T3 = matrix_exponential_trans(w3, v3, theta_3);
-    Eigen::Matrix4d T4 = matrix_exponential_trans(w4, v4, theta_4);
-    Eigen::Matrix4d T5 = matrix_exponential_trans(w5, v5, theta_5);
-    Eigen::Matrix4d T6 = matrix_exponential_trans(w6, v6, theta_6);
-
+    std::cout << T2*M << std::endl;
 
     T_06 = T1 * T2 * T3 * T4 * T5 * T6 * M;
 
     return T_06;
 }
 
+//--------------------------- Task 5b) ---------------------------
 
-Eigen::Matrix4d
-DH_tranformation(double theta, double d, double a, double alpha) {
-    Eigen::Matrix4d T;
-    T <<
-        std::cos(theta), -std::sin(theta)*std::cos(alpha),std::sin(theta)*std::sin(theta),a*std::cos(theta),
-        std::sin(theta), std::cos(theta)*std::cos(alpha), -std::cos(theta)*std::sin(alpha),a*std::sin(theta),
-        0,std::sin(alpha),std::cos(alpha),d,
-        0,0,0,1;
 
-    return T;
-}
 Eigen::Matrix4d ur3e_fk_transform(const std::vector<double> &joint_positions) {
-    const double LB = 0.152;    //d1
-    const double a2 = 0.244;    //a2
-    const double a3 = 0.213;    //a3
-    const double d4 = 0.131;    //d4
-    const double d5 = 0.085;     //d5
-    const double LTP = 0.092 ;   //d6
-
+    Eigen::Matrix4d T_1, T_2, T_3, T_4, T_5, T_6,T_06;
+    const double H1 = 0.152;   //d1
+    const double L1 = 0.244;   //a2
+    const double L2 = 0.213;   //a3
+    const double W1 = 0.131;   //d4
+    const double H2 = 0.085;   //d5
+    const double W2 = 0.092;   //d6
 
     double theta_1 = deg_to_rad(joint_positions[0]);
     double theta_2 = deg_to_rad(joint_positions[1]);
@@ -456,22 +463,11 @@ Eigen::Matrix4d ur3e_fk_transform(const std::vector<double> &joint_positions) {
     double theta_4 = deg_to_rad(joint_positions[3]);
     double theta_5 = deg_to_rad(joint_positions[4]);
     double theta_6 = deg_to_rad(joint_positions[5]);
-    double alpha = M_PI/2;
 
-    Eigen::Matrix4d T_B0,T_01, T_12, T_23, T_34, T_45, T_56,T_06;
-
-    T_01 = DH_tranformation(theta_1, LB, 0, alpha);
-    T_12 = DH_tranformation(theta_2, 0, a2, 0);
-    T_23 = DH_tranformation(theta_3, 0, a3, 0);
-    T_34 = DH_tranformation(theta_4, d4, 0, alpha);
-    T_45 = DH_tranformation(theta_5, d5, 0, -alpha);
-    T_56 = DH_tranformation(theta_6, LTP, 0, 0);
-
-
-    T_06 = T_01*T_12*T_23*T_34*T_45*T_56;
 
     return T_06;
 }
+
 int main()
 {
     std::vector<std::vector<double>> test_joint_positions = {
@@ -494,8 +490,8 @@ int main()
         {0.0, -90, 0.0, 0.0, 0.0, 0.0}             // j3
     };
 
-    Eigen::Matrix4d ur3_T_S = ur3e_fk_screw(test_joint_positions_6d[1]);
-    Eigen::Matrix4d ur3_T_T = ur3e_fk_transform(test_joint_positions_6d[1]);
+    Eigen::Matrix4d ur3_T_S = ur3e_fk_screw(test_joint_positions_6d[2]);
+    Eigen::Matrix4d ur3_T_T = ur3e_fk_transform(test_joint_positions_6d[2]);
 
     print_pose("Pose Description:", ur3_T_S);
     print_pose("Pose Description:", ur3_T_T);
