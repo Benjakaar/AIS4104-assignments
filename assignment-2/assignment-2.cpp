@@ -1,6 +1,16 @@
 #include <iostream>
 #include <Eigen/Dense>
 
+Eigen::Matrix4d transformation_matrix(const Eigen::Matrix3d &r, const Eigen::Vector3d &d) {
+    Eigen::Matrix4d matrix;
+    matrix <<
+        r(0,0), r(0,1), r(0,2), d(0),
+        r(1,0), r(1,1), r(1,2), d(1),
+        r(2,0), r(2,1), r(2,2), d(2),
+        0.0,0.0,0.0,1.0;
+    return matrix;
+}
+
 double deg_to_rad(double deg)
 {
     return deg * M_PI / 180;
@@ -57,7 +67,6 @@ Eigen::VectorXd twist(const Eigen::Vector3d &w, const Eigen::Vector3d &v) {
     return Twist;
 }
 
-
 Eigen::VectorXd screw_axis(const Eigen::Vector3d &q, const Eigen::Vector3d &s, double h) {
     Eigen::VectorXd Twist(6);
     double theta_dot = 1.0;
@@ -69,7 +78,6 @@ Eigen::VectorXd screw_axis(const Eigen::Vector3d &q, const Eigen::Vector3d &s, d
         w(0),w(1),w(2),v(0),v(1),v(2);
     return Twist;
 }
-
 
 Eigen::MatrixXd adjoint_matrix(const Eigen::Matrix4d &tf) {
     Eigen::Matrix3d R;
@@ -97,7 +105,6 @@ Eigen::MatrixXd adjoint_matrix(const Eigen::Matrix4d &tf) {
 double cot(double x) {
     return 1.0 / std::tan(x);
 }
-
 
 //--------------------------- Task 2a) ---------------------------
 Eigen::Matrix3d rotate_x(double degrees)
@@ -310,6 +317,7 @@ Eigen::Matrix4d planar_3r_fk_transform(const std::vector<double> &joint_position
         0,0,1,0,
         0,0,0,1;
 
+
     T_12 <<
         std::cos(theta_2), -std::sin(theta_2),0,L1,
         std::sin(theta_2), std::cos(theta_2), 0,0,
@@ -385,7 +393,6 @@ Eigen::Matrix4d planar_3r_fk_screw(const std::vector<double> &joint_positions) {
     Eigen::Matrix4d T2 = matrix_exponential_trans(w2, v2, theta_2);
     Eigen::Matrix4d T3 = matrix_exponential_trans(w3, v3, theta_3);
 
-
     T_04 = T1 * T2 * T3 * M;
 
     return T_04;
@@ -438,8 +445,6 @@ Eigen::Matrix4d ur3e_fk_screw(const std::vector<double> &joint_positions) {
     Eigen::Matrix4d T5 = matrix_exponential_trans({S5(0), S5(1), S5(2)}, {S5(3), S5(4), S5(5)}, theta_5);
     Eigen::Matrix4d T6 = matrix_exponential_trans({S6(0), S6(1), S6(2)}, {S6(3), S6(4), S6(5)}, theta_6);
 
-    std::cout << T2*M << std::endl;
-
     T_06 = T1 * T2 * T3 * T4 * T5 * T6 * M;
 
     return T_06;
@@ -447,23 +452,46 @@ Eigen::Matrix4d ur3e_fk_screw(const std::vector<double> &joint_positions) {
 
 //--------------------------- Task 5b) ---------------------------
 
-
 Eigen::Matrix4d ur3e_fk_transform(const std::vector<double> &joint_positions) {
-    Eigen::Matrix4d T_1, T_2, T_3, T_4, T_5, T_6,T_06;
-    const double H1 = 0.152;   //d1
-    const double L1 = 0.244;   //a2
-    const double L2 = 0.213;   //a3
-    const double W1 = 0.131;   //d4
-    const double H2 = 0.085;   //d5
-    const double W2 = 0.092;   //d6
+    Eigen::Matrix4d  T_01, T_12, T_23, T_34, T_45, T_56, T_06, T_6END;
+    Eigen::Matrix3d R01, R12, R23, R34, R45, R56;
+    Eigen::Matrix3d R6END;
+    Eigen::Vector3d P01, P12, P23, P34, P45, P56, PEND;
 
-    double theta_1 = deg_to_rad(joint_positions[0]);
-    double theta_2 = deg_to_rad(joint_positions[1]);
-    double theta_3 = deg_to_rad(joint_positions[2]);
-    double theta_4 = deg_to_rad(joint_positions[3]);
-    double theta_5 = deg_to_rad(joint_positions[4]);
-    double theta_6 = deg_to_rad(joint_positions[5]);
+    const double H1 = 0.152;   //d0
+    const double L1 = 0.244;   //a1
+    const double L2 = 0.213;   //a2
+    const double W1 = 0.131;   //d3
+    const double H2 = 0.085;   //d4
+    const double W2 = 0.092;   //d5
 
+    R01 = rotate_z(joint_positions[0]);
+    R12 = rotate_y(joint_positions[1]);
+    R23 = rotate_y(joint_positions[2]);
+    R34 = rotate_y(joint_positions[3]);
+    R45 = -rotate_z(joint_positions[4]);
+    R56 = rotate_y(joint_positions[5]);
+    R6END << 1, 0, 0, // Rotate around x to represent z out of the end effector
+            0, 0, -1,
+            0, -1, 0;
+
+    P01 = {0, 0, 0};
+    P12 = {0, 0, H1};
+    P23 = {L1, 0, 0};
+    P34 = {L2, 0, 0};
+    P45 = {0, W1, 0};
+    P56 = {0, -W2, 0};
+    PEND = {0, 0, H2};
+
+    T_01 = transformation_matrix(R01, P01);
+    T_12 = transformation_matrix(R12, P12);
+    T_23 = transformation_matrix(R23, P23);
+    T_34 = transformation_matrix(R34, P34);
+    T_45 = transformation_matrix(R45, P45);
+    T_56 = transformation_matrix(R56, P56);
+    T_6END = transformation_matrix(R6END, PEND);
+
+    T_06 =  T_01 * T_12 *T_23 * T_34 * T_45 * T_56 * T_6END;
 
     return T_06;
 }
@@ -477,7 +505,6 @@ int main()
         {0.0, 0.0, 90},         // j4
         {10.0, -15.0, 2.75 }    // j5
     };
-
 
     Eigen::Matrix4d T1 = planar_3r_fk_transform(test_joint_positions[4]);
     Eigen::Matrix4d T2 = planar_3r_fk_screw(test_joint_positions[4]);
