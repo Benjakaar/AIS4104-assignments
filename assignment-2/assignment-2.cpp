@@ -500,8 +500,8 @@ int main()
     Eigen::Matrix4d ur3_T_S = ur3e_fk_screw(test_joint_positions_6d[2]);
     Eigen::Matrix4d ur3_T_T = ur3e_fk_transform(test_joint_positions_6d[2]);
 
-    //print_pose("Pose Description:", ur3_T_S);
-    //print_pose("Pose Description:", ur3_T_T);
+    print_pose("Pose Description:", ur3_T_S);
+    print_pose("Pose Description:", ur3_T_T);
 
     return 0;
 }
