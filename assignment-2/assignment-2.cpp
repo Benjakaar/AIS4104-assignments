@@ -359,35 +359,17 @@ Eigen::Matrix4d planar_3r_fk_screw(const std::vector<double> &joint_positions) {
         0, 0, 1, 0,
         0, 0, 0, 1;
 
-    skew_S_1 <<
-        0, -1, 0, 0,
-        1, 0, 0, 0,
-        0, 0, 0, 0,
-        0, 0, 0, 0;
-
-    skew_S_2 <<
-        0, -1, 0, 0,
-        1, 0, 0, -L1,
-        0, 0, 0, 0,
-        0, 0, 0, 0;
-
-    skew_S_3 <<
-        0, -1, 0, 0,
-        1, 0, 0, -(L1 + L2),
-        0, 0, 0, 0,
-        0, 0, 0, 0;
-
     Eigen::Vector3d w1(0, 0, 1);
     Eigen::Vector3d v1;
-    v1 <<  skew_S_1(0, 3), skew_S_1(1, 3), skew_S_1(2, 3);
+    v1 <<  0,0,0;
 
     Eigen::Vector3d w2(0, 0, 1);
     Eigen::Vector3d v2;
-    v2 <<  skew_S_2(0, 3), skew_S_2(1, 3), skew_S_2(2, 3);
+    v2 <<  0, -L1, 0;
 
     Eigen::Vector3d w3(0, 0, 1);
     Eigen::Vector3d v3;
-    v3 << skew_S_3(0, 3), skew_S_3(1, 3), skew_S_3(2, 3);
+    v3 << 0, -(L1 + L2), 0;
 
     Eigen::Matrix4d T1 = matrix_exponential_trans(w1, v1, theta_1);
     Eigen::Matrix4d T2 = matrix_exponential_trans(w2, v2, theta_2);
@@ -420,7 +402,7 @@ Eigen::Matrix4d ur3e_fk_screw(const std::vector<double> &joint_positions) {
     Eigen::Vector3d q2(0, 0, H1), s2(0, 1, 0); // Joint 2 (rotates about y-axis)
     Eigen::Vector3d q3(L1, 0, H1), s3(0, 1, 0); // Joint 3 (rotates about y-axis)
     Eigen::Vector3d q4(L1 + L2, 0, H1), s4(0, 1, 0); // Joint 4 (rotates about y-axis)
-    Eigen::Vector3d q5(L1 + L2, W1, H1), s5(0, 0, -1); // Joint 5 (rotates about z-axis)
+    Eigen::Vector3d q5(L1 + L2, W1, H1), s5(0, 0, 1); // Joint 5 (rotates about z-axis)
     Eigen::Vector3d q6(L1 + L2, W1 + W2, H1), s6(0, 1, 0); // Joint 6 (rotates about y-axis)
 
     double h = 0;  // pitch = 0
@@ -469,19 +451,17 @@ Eigen::Matrix4d ur3e_fk_transform(const std::vector<double> &joint_positions) {
     R12 = rotate_y(joint_positions[1]);
     R23 = rotate_y(joint_positions[2]);
     R34 = rotate_y(joint_positions[3]);
-    R45 = -rotate_z(joint_positions[4]);
-    R56 = rotate_y(joint_positions[5]);
-    R6END << 1, 0, 0, // Rotate around x to represent z out of the end effector
-            0, 0, -1,
-            0, -1, 0;
+    R45 = rotate_y(-180)*rotate_z(joint_positions[4]); // Add a rotation of -180 degrees around y to tranform the frame
+    R56 = rotate_x(-90)*rotate_z(joint_positions[5]); // Add a rotation of -90 degrees to around x tranform the frame
+    R6END << rotate_z(0); // Identity matrix since there is no additional rotation between joint 6 and the end effector
 
     P01 = {0, 0, 0};
     P12 = {0, 0, H1};
     P23 = {L1, 0, 0};
     P34 = {L2, 0, 0};
     P45 = {0, W1, 0};
-    P56 = {0, -W2, 0};
-    PEND = {0, 0, H2};
+    P56 = {0, W2, 0};
+    PEND = {0, -H2, 0};
 
     T_01 = transformation_matrix(R01, P01);
     T_12 = transformation_matrix(R12, P12);
@@ -506,22 +486,22 @@ int main()
         {10.0, -15.0, 2.75 }    // j5
     };
 
-    Eigen::Matrix4d T1 = planar_3r_fk_transform(test_joint_positions[4]);
-    Eigen::Matrix4d T2 = planar_3r_fk_screw(test_joint_positions[4]);
-    //print_pose("Pose Description:", T1);
-    //print_pose("Pose Description:", T2);
+    Eigen::Matrix4d T1 = planar_3r_fk_transform(test_joint_positions[2]);
+    Eigen::Matrix4d T2 = planar_3r_fk_screw(test_joint_positions[2]);
+    print_pose("Pose Description:", T1);
+    print_pose("Pose Description:", T2);
 
     std::vector<std::vector<double>> test_joint_positions_6d = {
         {0.0, 0.0, 0.0, -90.0, 0.0, 0.0},           // j1
         {0.0, -180.0, 0.0, 0.0, 0.0, 0.0},         // j2
-        {0.0, -90, 0.0, 0.0, 0.0, 0.0}             // j3
+        {0.0, -90.0, 0.0, 0.0, 0.0, 0.0}             // j3
     };
 
     Eigen::Matrix4d ur3_T_S = ur3e_fk_screw(test_joint_positions_6d[2]);
     Eigen::Matrix4d ur3_T_T = ur3e_fk_transform(test_joint_positions_6d[2]);
 
-    print_pose("Pose Description:", ur3_T_S);
-    print_pose("Pose Description:", ur3_T_T);
+    //print_pose("Pose Description:", ur3_T_S);
+    //print_pose("Pose Description:", ur3_T_T);
 
     return 0;
 }
