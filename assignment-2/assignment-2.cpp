@@ -288,16 +288,20 @@ void print_pose(const std::string &label, const Eigen::Matrix4d &tf) {
 
     Eigen::Vector3d euler_ZYX = euler_zyx_from_rotation_matrix(R);
 
+    std::cout << label << std::endl;
+
     std::cout << "Position (x, y, z): ["
               << p.x() << ", "
               << p.y() << ", "
               << p.z() << "]" << std::endl;
 
-    std::cout << "Orientation (rZ, rY, rX) in radians: ["
+    std::cout << "Orientation (rX, rY, rZ) in radians: ["
               << euler_ZYX[0] << ", "
               << euler_ZYX[1] << ", "
               << euler_ZYX[2] << "]"
               << std::endl;
+
+    std::cout << std::endl;
 }
 
 //--------------------------- Task 4b) ---------------------------
@@ -488,8 +492,8 @@ int main()
 
     Eigen::Matrix4d T1 = planar_3r_fk_transform(test_joint_positions[2]);
     Eigen::Matrix4d T2 = planar_3r_fk_screw(test_joint_positions[2]);
-    print_pose("Pose Description:", T1);
-    print_pose("Pose Description:", T2);
+    //print_pose("Pose Description:", T1);
+    //print_pose("Pose Description:", T2);
 
     std::vector<std::vector<double>> test_joint_positions_6d = {
         {0.0, 0.0, 0.0, -90.0, 0.0, 0.0},           // j1
@@ -500,8 +504,8 @@ int main()
     Eigen::Matrix4d ur3_T_S = ur3e_fk_screw(test_joint_positions_6d[2]);
     Eigen::Matrix4d ur3_T_T = ur3e_fk_transform(test_joint_positions_6d[2]);
 
-    print_pose("Pose Description:", ur3_T_S);
-    print_pose("Pose Description:", ur3_T_T);
+    print_pose("Pose Description of UR3e using screws:", ur3_T_S);
+    print_pose("Pose Description of UR3e using transformation matrices:", ur3_T_T);
 
     return 0;
 }
