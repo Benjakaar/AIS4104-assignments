@@ -492,8 +492,8 @@ int main()
 
     Eigen::Matrix4d T1 = planar_3r_fk_transform(test_joint_positions[2]);
     Eigen::Matrix4d T2 = planar_3r_fk_screw(test_joint_positions[2]);
-    //print_pose("Pose Description:", T1);
-    //print_pose("Pose Description:", T2);
+    //print_pose("Planar 3r transformation matrices:", T1);
+    //print_pose("Planar 3r screws:", T2);
 
     std::vector<std::vector<double>> test_joint_positions_6d = {
         {0.0, 0.0, 0.0, -90.0, 0.0, 0.0},           // j1
