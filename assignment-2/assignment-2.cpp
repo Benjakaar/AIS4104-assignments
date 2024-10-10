@@ -13,12 +13,12 @@ Eigen::Matrix4d transformation_matrix(const Eigen::Matrix3d &r, const Eigen::Vec
 
 double deg_to_rad(double deg)
 {
-    return deg * M_PI / 180;
+    return deg * M_PI / 180.0;
 }
 
 double rad_to_deg(double rad)
 {
-    return rad * 180 / M_PI;
+    return rad * 180.0 / M_PI;
 }
 
 Eigen::Matrix3d skew_symmetric(const Eigen::Vector3d& v)
@@ -150,7 +150,7 @@ void wrench_w_and_s() {
     e_ws << 60.0, -60.0, 0.0; //in Euler YZX
 
     Eigen::Matrix3d R_ws = rotate_y(e_ws(0))*rotate_z(e_ws(1))*rotate_x(e_ws(2));
-    Eigen::Vector3d f_s = R_ws*f_w;
+    Eigen::Vector3d f_s = R_ws.transpose()*f_w;
     Eigen::Vector3d m_w = R_ws*m_s;
 
     std::cout << "f_w: ["<< f_w.x()<<","<< f_w.y()<<"," <<f_w.z() <<"]"<< std::endl;
@@ -490,10 +490,10 @@ int main()
         {10.0, -15.0, 2.75 }    // j5
     };
 
-    Eigen::Matrix4d T1 = planar_3r_fk_transform(test_joint_positions[2]);
-    Eigen::Matrix4d T2 = planar_3r_fk_screw(test_joint_positions[2]);
-    print_pose("Planar 3r transformation matrices:", T1);
-    print_pose("Planar 3r screws:", T2);
+    Eigen::Matrix4d T1 = planar_3r_fk_transform(test_joint_positions[4]);
+    Eigen::Matrix4d T2 = planar_3r_fk_screw(test_joint_positions[4]);
+    //print_pose("Planar 3r transformation matrices:", T1);
+    //print_pose("Planar 3r screws:", T2);
 
     std::vector<std::vector<double>> test_joint_positions_6d = {
         {0.0, 0.0, 0.0, -90.0, 0.0, 0.0},           // j1
@@ -501,11 +501,11 @@ int main()
         {0.0, -90.0, 0.0, 0.0, 0.0, 0.0}             // j3
     };
 
-    Eigen::Matrix4d ur3_T_S = ur3e_fk_screw(test_joint_positions_6d[2]);
-    Eigen::Matrix4d ur3_T_T = ur3e_fk_transform(test_joint_positions_6d[2]);
+    Eigen::Matrix4d ur3_T_S = ur3e_fk_screw(test_joint_positions_6d[0]);
+    Eigen::Matrix4d ur3_T_T = ur3e_fk_transform(test_joint_positions_6d[0]);
 
-    print_pose("Pose Description of UR3e using screws:", ur3_T_S);
-    print_pose("Pose Description of UR3e using transformation matrices:", ur3_T_T);
-
+    //print_pose("Pose Description of UR3e using screws:", ur3_T_S);
+    //print_pose("Pose Description of UR3e using transformation matrices:", ur3_T_T);
+    Example3_28();
     return 0;
 }
