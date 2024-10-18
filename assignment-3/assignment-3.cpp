@@ -355,9 +355,9 @@ void ur3e_ik_test() {
     ur3e_ik_test_configuration(j_d1, j_t0); ur3e_ik_test_configuration(j_d1, j_t2);
 }
 int main() {
-    //ur3e_test_fk();
-    //test_root_find();
-    //ur3e_test_jacobian();
+    ur3e_test_fk();
+    test_root_find();
+    ur3e_test_jacobian();
     ur3e_ik_test();
     return 0;
  }
