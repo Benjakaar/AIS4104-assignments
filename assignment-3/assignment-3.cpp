@@ -281,7 +281,7 @@ void ur3e_test_jacobian() {
 
 // Task 4a
 std::pair<size_t, Eigen::VectorXd> ur3e_ik_body(const Eigen::Matrix4d &t_sd, const Eigen::VectorXd
-    &current_joint_positions, double gamma = 1e-3, double v_e = 4e-3, double w_e = 4e-3) {
+    &current_joint_positions, double gamma = 1e-4, double v_e = 0.1, double w_e = 0.1) {
 
     long iterations = 0;
 
@@ -295,7 +295,7 @@ std::pair<size_t, Eigen::VectorXd> ur3e_ik_body(const Eigen::Matrix4d &t_sd, con
     double theta;
 
     while (iterations < 100000) {
-        Eigen::Matrix4d t_sb = ur3_space_fk(joint_positions);
+        Eigen::Matrix4d t_sb = ur3_body_fk(joint_positions);
 
         std::tie(V_b,theta) = math::matrix_logarithm_trans(t_sb.inverse() * t_sd);
 
@@ -304,8 +304,9 @@ std::pair<size_t, Eigen::VectorXd> ur3e_ik_body(const Eigen::Matrix4d &t_sd, con
 
         norm_v = v_b.norm();
         norm_w = w_b.norm();
-
+        //std::cout << "norm v: " << norm_v << " " << "norm w " << norm_w << std::endl;
         Eigen::MatrixXd J_b = ur3e_body_jacobian(joint_positions);
+
         Eigen::MatrixXd J_b_pinv = J_b.completeOrthogonalDecomposition().pseudoInverse();
 
         joint_positions += (-gamma * J_b_pinv * V_b);
@@ -355,9 +356,9 @@ void ur3e_ik_test() {
     ur3e_ik_test_configuration(j_d1, j_t0); ur3e_ik_test_configuration(j_d1, j_t2);
 }
 int main() {
-    ur3e_test_fk();
-    test_root_find();
-    ur3e_test_jacobian();
+    //ur3e_test_fk();
+    //test_root_find();
+    //ur3e_test_jacobian();
     ur3e_ik_test();
     return 0;
  }
